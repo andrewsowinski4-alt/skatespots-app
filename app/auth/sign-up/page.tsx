@@ -19,44 +19,42 @@ export default function SignUpPage() {
   const router = useRouter()
   const supabase = createClient()
 
-  const resetLoading = () => setIsLoading(false)
-
   async function handleSignUp(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
 
-    // Validation
-    if (!email || !password || !confirmPassword) {
-      toast.error('Please fill in all required fields')
+    if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
+      toast.error('Please fill in all required fields.')
       return
     }
-    if (password.length < 6) {
-      toast.error('Password must be at least 6 characters')
-      return
-    }
+
     if (password !== confirmPassword) {
-      toast.error('Passwords do not match')
+      toast.error('Passwords do not match.')
       return
     }
 
     setIsLoading(true)
+    try {
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
 
-    // Sign Up in Supabase Auth
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
+      if (signUpError || !signUpData.user) {
+        toast.error(signUpError?.message || 'Sign up failed')
+        return
+      }
 
-    if (signUpError || !signUpData.user) {
-      toast.error(signUpError?.message || 'Sign up failed')
-      resetLoading()
-      return
+      if (signUpData.session) {
+        router.push('/welcome')
+      } else {
+        router.push('/create-profile')
+      }
+    } finally {
+      setIsLoading(false)
     }
-
-    setIsLoading(false)
-    router.push('/create-profile')
   }
 
   return (
@@ -83,6 +81,7 @@ export default function SignUpPage() {
                 required
                 autoComplete="off"
                 className="bg-secondary"
+                disabled={isLoading}
               />
             </div>
             {/* Password/Confirm grid */}
@@ -98,6 +97,7 @@ export default function SignUpPage() {
                   required
                   autoComplete="new-password"
                   className="bg-secondary"
+                  disabled={isLoading}
                 />
               </div>
               <div className="space-y-2">
@@ -111,6 +111,7 @@ export default function SignUpPage() {
                   required
                   autoComplete="new-password"
                   className="bg-secondary"
+                  disabled={isLoading}
                 />
               </div>
             </div>
