@@ -35,6 +35,8 @@ interface ProfileContentProps {
       years_skating?: number
       age?: number
       avatar_path?: string
+      bio?: string
+ 
     }
   }
   profile: Profile | null
@@ -45,6 +47,7 @@ interface ProfileContentProps {
   isAdmin: boolean
 }
 
+// Prefer fields from profile table, with fallback as last resort
 export function ProfileContent({ user, profile, stats, isAdmin }: ProfileContentProps) {
   const router = useRouter()
   const supabase = createClient()
@@ -52,20 +55,39 @@ export function ProfileContent({ user, profile, stats, isAdmin }: ProfileContent
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   
-  // Get display values from profile or user metadata
-  const displayName = profile?.display_name || user.user_metadata?.display_name || user.email.split('@')[0]
-  const displayLocation = profile?.location || user.user_metadata?.location || ''
-  const displayYearsSkating = profile?.years_skating ?? user.user_metadata?.years_skating ?? null
-  const displayAge = profile?.age ?? user.user_metadata?.age ?? null
-  const displayBio = profile?.bio || ''
-  const displayAvatar = profile?.avatar_url || user.user_metadata?.avatar_path || null
-  
-  // Edit form state
-  const [editName, setEditName] = useState(displayName)
-  const [location, setLocation] = useState(displayLocation)
-  const [yearsSkating, setYearsSkating] = useState(displayYearsSkating?.toString() || '')
-  const [age, setAge] = useState(displayAge?.toString() || '')
-  const [bio, setBio] = useState(displayBio)
+  // Prefer profile as single source of truth, fall back to user_metadata only for *display* if profile is completely missing, and finally to email
+  const displayName = profile?.display_name 
+    ?? user.user_metadata?.display_name 
+    ?? user.email.split('@')[0]
+  const displayLocation = profile?.location 
+    ?? user.user_metadata?.location 
+    ?? ''
+  const displayYearsSkating = profile?.years_skating 
+    ?? user.user_metadata?.years_skating 
+    ?? null
+  const displayAge = profile?.age
+    ?? user.user_metadata?.age 
+    ?? null
+  const displayBio = profile?.bio 
+    ?? user.user_metadata?.bio 
+    ?? ''
+  // avatar_url from profile is authoritative; only fallback to null (ignore user_metadata.avatar_path)
+  const displayAvatar = profile?.avatar_url || null
+
+  // Edit form state (should always use profile as source of truth here)
+  const [editName, setEditName] = useState(profile?.display_name ?? user.email.split('@')[0])
+  const [location, setLocation] = useState(profile?.location ?? '')
+  const [yearsSkating, setYearsSkating] = useState(
+    profile?.years_skating !== null && profile?.years_skating !== undefined
+      ? profile.years_skating.toString()
+      : ''
+  )
+  const [age, setAge] = useState(
+    profile?.age !== null && profile?.age !== undefined
+      ? profile.age.toString()
+      : ''
+  )
+  const [bio, setBio] = useState(profile?.bio ?? '')
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
 
@@ -152,11 +174,20 @@ export function ProfileContent({ user, profile, stats, isAdmin }: ProfileContent
 
   const handleCancel = () => {
     setIsEditing(false)
-    setEditName(displayName)
-    setLocation(displayLocation)
-    setYearsSkating(displayYearsSkating?.toString() || '')
-    setAge(displayAge?.toString() || '')
-    setBio(displayBio)
+    // Reset edit fields to profile (not user_metadata!)
+    setEditName(profile?.display_name ?? user.email.split('@')[0])
+    setLocation(profile?.location ?? '')
+    setYearsSkating(
+      profile?.years_skating !== null && profile?.years_skating !== undefined
+        ? profile.years_skating.toString()
+        : ''
+    )
+    setAge(
+      profile?.age !== null && profile?.age !== undefined
+        ? profile.age.toString()
+        : ''
+    )
+    setBio(profile?.bio ?? '')
     setAvatarFile(null)
     setAvatarPreview(null)
   }
