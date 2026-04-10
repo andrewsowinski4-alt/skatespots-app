@@ -82,6 +82,19 @@ export function ProfileContent({ user, profile, stats, isAdmin }: ProfileContent
   }
 
   const handleSave = async () => {
+    // Validation for required fields
+    if (
+      !editName ||
+      editName.trim() === '' ||
+      !location ||
+      location.trim() === '' ||
+      age === '' ||
+      yearsSkating === ''
+    ) {
+      toast.error('Please fill in all required fields')
+      return
+    }
+
     setIsSaving(true)
     try {
       let avatarUrl = displayAvatar
