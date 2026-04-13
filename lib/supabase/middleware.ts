@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
+import { isProfileComplete } from '@/lib/profile-completion'
 
 export async function updateSession(request: NextRequest) {
   const response = NextResponse.next({
@@ -51,7 +52,7 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // Protected routes check
+  // Protected routes check (must be logged in)
   if (
     (request.nextUrl.pathname.startsWith('/protected') ||
       request.nextUrl.pathname.startsWith('/submit') ||
@@ -62,6 +63,37 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone()
     url.pathname = '/auth/login'
     return NextResponse.redirect(url)
+  }
+
+  const pathname = request.nextUrl.pathname
+
+  // Profile completion gate (pages only — avoid redirecting API fetch to HTML)
+  if (
+    user &&
+    !pathname.startsWith('/api') &&
+    !pathname.startsWith('/auth') &&
+    pathname !== '/create-profile' &&
+    !pathname.startsWith('/create-profile/') &&
+    pathname !== '/welcome' &&
+    !pathname.startsWith('/welcome/')
+  ) {
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (profileError) {
+      console.error('Profile gate query failed:', profileError.message)
+      return response
+    }
+
+    if (!isProfileComplete(profile)) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/create-profile'
+      url.search = ''
+      return NextResponse.redirect(url)
+    }
   }
 
   return response

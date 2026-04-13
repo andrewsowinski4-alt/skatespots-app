@@ -4,9 +4,9 @@ import type { SkateSpot } from '@/lib/types'
 
 export default async function HomePage() {
   const supabase = await createClient()
-  
+
   const { data: user } = await supabase.auth.getUser()
-  
+
   const { data: spots } = await supabase
     .from('skate_spots')
     .select('*')

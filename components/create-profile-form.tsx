@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
 export default function CreateProfileForm() {
+  const [username, setUsername] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [location, setLocation] = useState('')
   const [age, setAge] = useState('')
@@ -21,6 +22,7 @@ export default function CreateProfileForm() {
 
     // Validate required fields
     if (
+      !username.trim() ||
       !displayName.trim() ||
       !location.trim() ||
       !age.toString().trim() ||
@@ -47,7 +49,8 @@ export default function CreateProfileForm() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          display_name: displayName,
+          username: username.trim(),
+          display_name: displayName.trim(),
           location,
           age: ageNum,
           years_skating: yearsNum,
@@ -62,8 +65,11 @@ export default function CreateProfileForm() {
         try {
           const data = await res.json()
           if (data?.error) message = data.error
-        } catch (err) {
-          // fallback to generic error
+          else if (res.status === 409)
+            message = 'That username is already taken. Try another.'
+        } catch {
+          if (res.status === 409)
+            message = 'That username is already taken. Try another.'
         }
         toast.error(message)
       }
@@ -76,6 +82,21 @@ export default function CreateProfileForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+      {/* Username */}
+      <div className="space-y-2">
+        <Label htmlFor="username">Username *</Label>
+        <Input
+          id="username"
+          type="text"
+          placeholder="your_handle"
+          value={username}
+          onChange={e => setUsername(e.target.value)}
+          required
+          className="bg-secondary"
+          autoFocus
+          autoComplete="username"
+        />
+      </div>
       {/* Display Name */}
       <div className="space-y-2">
         <Label htmlFor="displayName">Display Name *</Label>
@@ -87,7 +108,6 @@ export default function CreateProfileForm() {
           onChange={e => setDisplayName(e.target.value)}
           required
           className="bg-secondary"
-          autoFocus
         />
       </div>
       {/* Location */}

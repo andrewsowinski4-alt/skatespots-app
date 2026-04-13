@@ -48,9 +48,28 @@ export default function SignUpPage() {
       }
 
       if (signUpData.session) {
-        router.push('/welcome')
-      } else {
+        const loginRes = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        })
+        if (!loginRes.ok) {
+          let msg = 'Could not complete sign-in.'
+          try {
+            const j = await loginRes.json()
+            if (j?.error) msg = j.error
+          } catch {
+            /* ignore */
+          }
+          toast.error(msg)
+          return
+        }
+        toast.success("You're signed in. Let's set up your profile.")
         router.push('/create-profile')
+        router.refresh()
+      } else {
+        toast.success('Account created! Please sign in.')
+        router.replace('/auth/login')
       }
     } finally {
       setIsLoading(false)

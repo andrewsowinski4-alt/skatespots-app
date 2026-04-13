@@ -83,6 +83,10 @@ export async function PUT(request: NextRequest) {
     if (!displayName.ok) {
       return NextResponse.json({ error: displayName.error }, { status: 400 })
     }
+    const username = readOptionalTrimmedString(body, "username")
+    if (!username.ok) {
+      return NextResponse.json({ error: username.error }, { status: 400 })
+    }
     const location = readOptionalTrimmedString(body, "location")
     if (!location.ok) {
       return NextResponse.json({ error: location.error }, { status: 400 })
@@ -104,16 +108,21 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: age.error }, { status: 400 })
     }
 
-    const profileData = {
+    // Only include keys present in the request so partial updates (e.g. profile editor) do not null out omitted fields like username.
+    const profileData: Record<string, unknown> = {
       id: user.id,
-      display_name: displayName.value,
-      location: location.value,
-      years_skating: yearsSkating.value,
-      age: age.value,
-      bio: bio.value,
-      avatar_url: avatarUrl.value,
       updated_at: new Date().toISOString(),
     }
+    const setIfPresent = (key: string, value: unknown) => {
+      if (value !== undefined) profileData[key] = value
+    }
+    setIfPresent("username", username.value)
+    setIfPresent("display_name", displayName.value)
+    setIfPresent("location", location.value)
+    setIfPresent("years_skating", yearsSkating.value)
+    setIfPresent("age", age.value)
+    setIfPresent("bio", bio.value)
+    setIfPresent("avatar_url", avatarUrl.value)
 
     const { data, error } = await supabase
       .from("profiles")
@@ -122,6 +131,26 @@ export async function PUT(request: NextRequest) {
       .single()
 
     if (error) {
+      const e = error as {
+        message?: string
+        details?: string
+        hint?: string
+        code?: string | number
+      }
+      const combined = [e.message, e.details, e.hint].filter(Boolean).join(" ")
+      const codeStr = String(e.code ?? "")
+      const isUsernameTaken =
+        codeStr === "23505" ||
+        /profiles_username_lower_unique|profiles_username/i.test(combined) ||
+        (/duplicate key|already exists/i.test(combined) &&
+          /username|lower\(username\)/i.test(combined))
+
+      if (isUsernameTaken) {
+        return NextResponse.json(
+          { error: "That username is already taken. Try another." },
+          { status: 409 }
+        )
+      }
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 

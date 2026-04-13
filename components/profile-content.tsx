@@ -193,9 +193,17 @@ export function ProfileContent({ user, profile, stats, isAdmin }: ProfileContent
   }
 
   const handleSignOut = async () => {
+    const res = await fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+    })
     await supabase.auth.signOut()
+    if (!res.ok) {
+      toast.error('Could not clear session. Try again.')
+      return
+    }
     toast.success('Signed out')
-    router.push('/')
+    router.replace('/auth/login')
     router.refresh()
   }
 

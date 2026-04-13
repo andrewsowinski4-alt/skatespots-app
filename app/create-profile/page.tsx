@@ -1,15 +1,26 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { isProfileComplete } from '@/lib/profile-completion'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { User } from 'lucide-react'
 import CreateProfileForm from '@/components/create-profile-form'
+
 export default async function CreateProfilePage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-
     redirect('/auth/login')
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (isProfileComplete(profile)) {
+    redirect('/')
   }
 
   return (
