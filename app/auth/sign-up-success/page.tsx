@@ -13,12 +13,16 @@ export default function SignUpSuccessPage() {
           </div>
           <CardTitle className="text-2xl font-bold">Account created</CardTitle>
           <CardDescription>
-            {"Your account has been created. Continue to your profile to complete your account setup."}
+            If SpotFinder sent a confirmation email, open the link first. Then sign in to finish
+            your profile and start exploring.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-2">
+          <Button asChild className="w-full">
+            <Link href="/auth/login">Sign in to SpotFinder</Link>
+          </Button>
           <Button asChild variant="outline" className="w-full">
-            <Link href="/profile">Go to profile</Link>
+            <Link href="/">Home</Link>
           </Button>
         </CardContent>
       </Card>

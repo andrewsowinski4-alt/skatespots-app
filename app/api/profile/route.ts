@@ -189,8 +189,9 @@ export async function PUT(request: NextRequest) {
         hint?: string
         code?: string | number
       }
-      const combined = [e.message, e.details, e.hint].filter(Boolean).join(" ")
       const codeStr = String(e.code ?? "")
+      const combined = [e.message, e.details, e.hint].filter(Boolean).join(" ")
+      // PostgREST: 23505 = unique_violation (e.g. profiles_username_lower_unique)
       const isUsernameTaken =
         codeStr === "23505" ||
         /profiles_username_lower_unique|profiles_username/i.test(combined) ||
@@ -199,7 +200,10 @@ export async function PUT(request: NextRequest) {
 
       if (isUsernameTaken) {
         return NextResponse.json(
-          { error: "That username is already taken. Try another." },
+          {
+            error:
+              "That username is already taken. Pick a different username and try again.",
+          },
           { status: 409 }
         )
       }

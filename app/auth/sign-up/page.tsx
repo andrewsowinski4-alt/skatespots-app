@@ -64,7 +64,7 @@ export default function SignUpPage() {
           toast.error(msg)
           return
         }
-        toast.success("You're signed in. Let's set up your profile.")
+        toast.success("Signed in — next, finish your SpotFinder profile.")
         router.push('/create-profile')
         router.refresh()
       } else {
@@ -83,8 +83,10 @@ export default function SignUpPage() {
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary">
             <MapPin className="h-6 w-6 text-primary-foreground" />
           </div>
-          <CardTitle className="text-2xl font-bold">Join SpotFinder</CardTitle>
-          <CardDescription>Create your account</CardDescription>
+          <CardTitle className="text-2xl font-bold">Create account</CardTitle>
+          <CardDescription>
+            Join SpotFinder — then you&apos;ll set up your profile (one short step).
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSignUp} className="space-y-4" autoComplete="off">

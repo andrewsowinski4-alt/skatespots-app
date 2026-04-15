@@ -30,9 +30,12 @@ export default async function CreateProfilePage() {
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary">
             <User className="h-6 w-6 text-primary-foreground" />
           </div>
-          <CardTitle className="text-2xl font-bold">Create Profile</CardTitle>
+          <CardTitle className="text-2xl font-bold">Finish your profile</CardTitle>
           <CardDescription>
-            You must complete your profile before you can continue. All fields marked <span className="font-semibold text-primary">*</span> are required.
+            Last step for SpotFinder: add your details so we can show your name on the map and
+            profile. Fields marked{' '}
+            <span className="font-semibold text-primary">*</span> are required; usernames must be
+            unique.
           </CardDescription>
         </CardHeader>
         <CardContent>

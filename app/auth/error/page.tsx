@@ -11,9 +11,9 @@ export default function AuthErrorPage() {
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive">
             <AlertCircle className="h-6 w-6 text-destructive-foreground" />
           </div>
-          <CardTitle className="text-2xl font-bold">Authentication Error</CardTitle>
+          <CardTitle className="text-2xl font-bold">Couldn&apos;t sign you in</CardTitle>
           <CardDescription>
-            Something went wrong during authentication. Please try again.
+            SpotFinder hit a problem during sign-in. Try again, or go home and start over.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

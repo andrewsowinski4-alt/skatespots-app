@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -90,10 +90,13 @@ export function ProfileContent({ user, profile, stats, isAdmin }: ProfileContent
   const [bio, setBio] = useState(profile?.bio ?? '')
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const [removeAvatar, setRemoveAvatar] = useState(false)
+  const avatarFileInputRef = useRef<HTMLInputElement | null>(null)
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      setRemoveAvatar(false)
       setAvatarFile(file)
       const reader = new FileReader()
       reader.onloadend = () => {
@@ -101,6 +104,13 @@ export function ProfileContent({ user, profile, stats, isAdmin }: ProfileContent
       }
       reader.readAsDataURL(file)
     }
+  }
+
+  const handleRemoveAvatarClick = () => {
+    setRemoveAvatar(true)
+    setAvatarFile(null)
+    setAvatarPreview(null)
+    if (avatarFileInputRef.current) avatarFileInputRef.current.value = ''
   }
 
   const handleSave = async () => {
@@ -119,27 +129,37 @@ export function ProfileContent({ user, profile, stats, isAdmin }: ProfileContent
 
     setIsSaving(true)
     try {
-      let avatarUrl = displayAvatar
+      let avatarUrl: string | null = displayAvatar
 
-      // Upload new avatar if changed
       if (avatarFile) {
         const formData = new FormData()
         formData.append('file', avatarFile)
         formData.append('folder', 'avatars')
-        
+
         const uploadRes = await fetch('/api/upload', {
           method: 'POST',
           body: formData,
         })
-        
-        if (uploadRes.ok) {
-          const uploadData = await uploadRes.json()
-          avatarUrl = uploadData.pathname
-        } else {
-          toast.error('Failed to upload profile picture')
+        const uploadData = (await uploadRes.json().catch(() => ({}))) as {
+          error?: string
+          pathname?: string
+        }
+
+        if (!uploadRes.ok) {
+          toast.error(
+            uploadData.error || `Could not upload photo (${uploadRes.status}).`
+          )
           setIsSaving(false)
           return
         }
+        if (!uploadData.pathname) {
+          toast.error('Upload did not return a file path. Try again.')
+          setIsSaving(false)
+          return
+        }
+        avatarUrl = uploadData.pathname
+      } else if (removeAvatar) {
+        avatarUrl = null
       }
 
       const res = await fetch('/api/profile', {
@@ -160,9 +180,11 @@ export function ProfileContent({ user, profile, stats, isAdmin }: ProfileContent
         setIsEditing(false)
         setAvatarFile(null)
         setAvatarPreview(null)
+        setRemoveAvatar(false)
         router.refresh()
       } else {
-        toast.error('Failed to update profile')
+        const errData = (await res.json().catch(() => ({}))) as { error?: string }
+        toast.error(errData.error || 'Failed to update profile')
       }
     } catch (error) {
       console.error('Failed to save profile:', error)
@@ -190,6 +212,7 @@ export function ProfileContent({ user, profile, stats, isAdmin }: ProfileContent
     setBio(profile?.bio ?? '')
     setAvatarFile(null)
     setAvatarPreview(null)
+    setRemoveAvatar(false)
   }
 
   const handleSignOut = async () => {
@@ -208,10 +231,16 @@ export function ProfileContent({ user, profile, stats, isAdmin }: ProfileContent
   }
 
   const getAvatarSrc = () => {
+    if (removeAvatar && !avatarFile) return null
     if (avatarPreview) return avatarPreview
     if (displayAvatar) return `/api/file?pathname=${encodeURIComponent(displayAvatar)}`
     return null
   }
+
+  const canRemoveAvatar =
+    isEditing &&
+    (Boolean(displayAvatar) || Boolean(avatarPreview) || Boolean(avatarFile)) &&
+    !removeAvatar
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -250,29 +279,51 @@ export function ProfileContent({ user, profile, stats, isAdmin }: ProfileContent
         <Card className="border-border bg-card">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-4">
-              {/* Avatar */}
-              <div className="relative">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary overflow-hidden">
-                  {getAvatarSrc() ? (
-                    <img src={getAvatarSrc()!} alt="Avatar" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-2xl font-bold text-primary-foreground">
-                      {user.email.charAt(0).toUpperCase()}
-                    </span>
+              <div className="flex shrink-0 flex-col items-center gap-1">
+                <div className="relative">
+                  <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-primary">
+                    {getAvatarSrc() ? (
+                      <img src={getAvatarSrc()!} alt="Avatar" className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="text-2xl font-bold text-primary-foreground">
+                        {user.email.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  {isEditing && (
+                    <>
+                      <input
+                        ref={avatarFileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={handleAvatarChange}
+                        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                      />
+                      <div className="absolute -bottom-1 -right-1 rounded-full bg-primary p-1">
+                        <Camera className="h-3 w-3 text-primary-foreground" />
+                      </div>
+                    </>
                   )}
                 </div>
                 {isEditing && (
-                  <>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleAvatarChange}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    />
-                    <div className="absolute -bottom-1 -right-1 bg-primary rounded-full p-1">
-                      <Camera className="w-3 h-3 text-primary-foreground" />
-                    </div>
-                  </>
+                  <div className="flex max-w-[5.5rem] flex-col items-center gap-1">
+                    {canRemoveAvatar && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto px-1 py-0 text-xs text-muted-foreground"
+                        onClick={handleRemoveAvatarClick}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                    {removeAvatar && (
+                      <span className="text-center text-[10px] leading-tight text-muted-foreground">
+                        Save to apply
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
               <div className="min-w-0 flex-1">

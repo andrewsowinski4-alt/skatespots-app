@@ -67,15 +67,13 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
-  // Profile completion gate (pages only — avoid redirecting API fetch to HTML)
+  // Profile completion gate — see lib/profile-completion.ts and docs/profile-completion.md
   if (
     user &&
     !pathname.startsWith('/api') &&
     !pathname.startsWith('/auth') &&
     pathname !== '/create-profile' &&
-    !pathname.startsWith('/create-profile/') &&
-    pathname !== '/welcome' &&
-    !pathname.startsWith('/welcome/')
+    !pathname.startsWith('/create-profile/')
   ) {
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
