@@ -51,30 +51,40 @@ export default function CreateProfileForm() {
         body: JSON.stringify({
           username: username.trim(),
           display_name: displayName.trim(),
-          location,
+          location: location.trim(),
           age: ageNum,
           years_skating: yearsNum,
           bio: bio.trim(),
         }),
       })
 
+      const bodyText = await res.text()
+
       if (res.ok) {
-        router.push('/')
+        toast.success('Profile saved!')
+        router.replace('/')
+        router.refresh()
       } else {
-        let message = 'Failed to save profile.'
+        let message = `Could not save profile (${res.status}).`
         try {
-          const data = await res.json()
-          if (data?.error) message = data.error
-          else if (res.status === 409)
-            message = 'That username is already taken. Try another.'
+          const data = bodyText ? JSON.parse(bodyText) : null
+          if (data && typeof data === "object" && "error" in data && typeof (data as { error: unknown }).error === "string") {
+            message = (data as { error: string }).error
+          } else if (res.status === 409) {
+            message = "That username is already taken. Try another."
+          }
         } catch {
-          if (res.status === 409)
-            message = 'That username is already taken. Try another.'
+          if (res.status === 409) {
+            message = "That username is already taken. Try another."
+          } else if (bodyText) {
+            message = bodyText.slice(0, 200)
+          }
         }
         toast.error(message)
       }
     } catch (err) {
-      toast.error('Failed to save profile.')
+      console.error("Create profile submit failed:", err)
+      toast.error("Network error. Check your connection and try again.")
     } finally {
       setIsLoading(false)
     }

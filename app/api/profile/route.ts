@@ -108,6 +108,58 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: age.error }, { status: 400 })
     }
 
+    // Create-profile completion: requests that include username must send all required fields with valid values.
+    if (Object.prototype.hasOwnProperty.call(body, "username")) {
+      const missing: string[] = []
+      if (
+        username.value === undefined ||
+        username.value === null ||
+        (typeof username.value === "string" && !username.value.trim())
+      ) {
+        missing.push("username")
+      }
+      if (
+        displayName.value === undefined ||
+        displayName.value === null ||
+        (typeof displayName.value === "string" && !displayName.value.trim())
+      ) {
+        missing.push("display_name")
+      }
+      if (
+        location.value === undefined ||
+        location.value === null ||
+        (typeof location.value === "string" && !location.value.trim())
+      ) {
+        missing.push("location")
+      }
+      if (
+        age.value === undefined ||
+        age.value === null ||
+        typeof age.value !== "number" ||
+        !Number.isFinite(age.value) ||
+        age.value <= 0
+      ) {
+        missing.push("age")
+      }
+      if (
+        yearsSkating.value === undefined ||
+        yearsSkating.value === null ||
+        typeof yearsSkating.value !== "number" ||
+        !Number.isFinite(yearsSkating.value) ||
+        yearsSkating.value < 0
+      ) {
+        missing.push("years_skating")
+      }
+      if (missing.length > 0) {
+        return NextResponse.json(
+          {
+            error: `Missing or invalid: ${[...new Set(missing)].join(", ")}`,
+          },
+          { status: 400 }
+        )
+      }
+    }
+
     // Only include keys present in the request so partial updates (e.g. profile editor) do not null out omitted fields like username.
     const profileData: Record<string, unknown> = {
       id: user.id,

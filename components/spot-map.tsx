@@ -1,7 +1,13 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import Map, { Marker, NavigationControl, GeolocateControl, type MapRef } from 'react-map-gl'
+import Map, {
+  Marker,
+  NavigationControl,
+  GeolocateControl,
+  type MapRef,
+  type ViewStateChangeEvent,
+} from 'react-map-gl'
 import { useRouter } from 'next/navigation'
 import type { SkateSpot } from '@/lib/types'
 import 'mapbox-gl/dist/mapbox-gl.css'
@@ -53,6 +59,10 @@ export function SpotMap({ spots, onSpotSelect, selectedSpotId }: SpotMapProps) {
     }
   }, [onSpotSelect, router])
 
+  const handleMove = useCallback((evt: ViewStateChangeEvent) => {
+    setViewState(evt.viewState)
+  }, [])
+
   useEffect(() => {
     if (selectedSpotId && mapRef.current) {
       const spot = spots.find(s => s.id === selectedSpotId)
@@ -68,9 +78,11 @@ export function SpotMap({ spots, onSpotSelect, selectedSpotId }: SpotMapProps) {
 
   return (
     <Map
+      id="spotfinder-home-map"
       ref={mapRef}
+      reuseMaps
       {...viewState}
-      onMove={evt => setViewState(evt.viewState)}
+      onMove={handleMove}
       mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
       mapStyle="mapbox://styles/mapbox/dark-v11"
       style={{ width: '100%', height: '100%' }}

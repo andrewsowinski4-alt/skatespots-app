@@ -1,7 +1,19 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useState } from 'react'
-import { SpotMap } from '@/components/spot-map'
+
+const SpotMap = dynamic(
+  () => import('@/components/spot-map').then((mod) => ({ default: mod.SpotMap })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full w-full items-center justify-center bg-background">
+        <span className="text-sm text-muted-foreground">Loading map…</span>
+      </div>
+    ),
+  }
+)
 import { SpotCard } from '@/components/spot-card'
 import { BottomNav } from '@/components/bottom-nav'
 import { Button } from '@/components/ui/button'
