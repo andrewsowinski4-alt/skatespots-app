@@ -14,6 +14,9 @@ import { BottomNav } from '@/components/bottom-nav'
 import { ArrowLeft, LogOut, MapPin, CheckCircle, Shield, Camera, Pencil, X, Save, Calendar, Clock, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
+const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024
+
 interface Profile {
   id: string
   display_name: string | null
@@ -22,6 +25,7 @@ interface Profile {
   age: number | null
   bio: string | null
   avatar_url: string | null
+  username?: string | null
 }
 
 interface ProfileContentProps {
@@ -90,27 +94,46 @@ export function ProfileContent({ user, profile, stats, isAdmin }: ProfileContent
   const [bio, setBio] = useState(profile?.bio ?? '')
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  /** Blob pathname after upload if PUT failed — retry save without re-uploading */
+  const [pendingAvatarPath, setPendingAvatarPath] = useState<string | null>(null)
   const [removeAvatar, setRemoveAvatar] = useState(false)
   const avatarFileInputRef = useRef<HTMLInputElement | null>(null)
 
+  const clearAvatarInput = () => {
+    if (avatarFileInputRef.current) avatarFileInputRef.current.value = ''
+  }
+
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      setRemoveAvatar(false)
-      setAvatarFile(file)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setAvatarPreview(reader.result as string)
-      }
-      reader.readAsDataURL(file)
+    if (!file) return
+
+    if (!AVATAR_TYPES.includes(file.type as (typeof AVATAR_TYPES)[number])) {
+      toast.error('Please choose a JPEG, PNG, or WebP image.')
+      clearAvatarInput()
+      return
     }
+    if (file.size > MAX_AVATAR_BYTES) {
+      toast.error('Image is too large. Maximum size is 5MB.')
+      clearAvatarInput()
+      return
+    }
+
+    setRemoveAvatar(false)
+    setPendingAvatarPath(null)
+    setAvatarFile(file)
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setAvatarPreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
   }
 
   const handleRemoveAvatarClick = () => {
     setRemoveAvatar(true)
     setAvatarFile(null)
     setAvatarPreview(null)
-    if (avatarFileInputRef.current) avatarFileInputRef.current.value = ''
+    setPendingAvatarPath(null)
+    clearAvatarInput()
   }
 
   const handleSave = async () => {
@@ -129,9 +152,11 @@ export function ProfileContent({ user, profile, stats, isAdmin }: ProfileContent
 
     setIsSaving(true)
     try {
-      let avatarUrl: string | null = displayAvatar
+      let avatarUrl: string | null | undefined = undefined
 
-      if (avatarFile) {
+      if (removeAvatar) {
+        avatarUrl = null
+      } else if (avatarFile) {
         const formData = new FormData()
         formData.append('file', avatarFile)
         formData.append('folder', 'avatars')
@@ -149,30 +174,42 @@ export function ProfileContent({ user, profile, stats, isAdmin }: ProfileContent
           toast.error(
             uploadData.error || `Could not upload photo (${uploadRes.status}).`
           )
-          setIsSaving(false)
+          setAvatarFile(null)
+          setAvatarPreview(null)
+          clearAvatarInput()
           return
         }
         if (!uploadData.pathname) {
           toast.error('Upload did not return a file path. Try again.')
-          setIsSaving(false)
+          setAvatarFile(null)
+          setAvatarPreview(null)
+          clearAvatarInput()
           return
         }
         avatarUrl = uploadData.pathname
-      } else if (removeAvatar) {
-        avatarUrl = null
+        setPendingAvatarPath(uploadData.pathname)
+        setAvatarFile(null)
+        setAvatarPreview(null)
+        clearAvatarInput()
+      } else if (pendingAvatarPath) {
+        avatarUrl = pendingAvatarPath
+      }
+
+      const body: Record<string, unknown> = {
+        display_name: editName,
+        location,
+        years_skating: yearsSkating ? parseInt(yearsSkating, 10) : null,
+        age: age ? parseInt(age, 10) : null,
+        bio: bio || null,
+      }
+      if (avatarUrl !== undefined) {
+        body.avatar_url = avatarUrl
       }
 
       const res = await fetch('/api/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          display_name: editName,
-          location,
-          years_skating: yearsSkating ? parseInt(yearsSkating) : null,
-          age: age ? parseInt(age) : null,
-          bio: bio || null,
-          avatar_url: avatarUrl,
-        }),
+        body: JSON.stringify(body),
       })
 
       if (res.ok) {
@@ -180,6 +217,7 @@ export function ProfileContent({ user, profile, stats, isAdmin }: ProfileContent
         setIsEditing(false)
         setAvatarFile(null)
         setAvatarPreview(null)
+        setPendingAvatarPath(null)
         setRemoveAvatar(false)
         router.refresh()
       } else {
@@ -212,7 +250,9 @@ export function ProfileContent({ user, profile, stats, isAdmin }: ProfileContent
     setBio(profile?.bio ?? '')
     setAvatarFile(null)
     setAvatarPreview(null)
+    setPendingAvatarPath(null)
     setRemoveAvatar(false)
+    clearAvatarInput()
   }
 
   const handleSignOut = async () => {
@@ -231,15 +271,21 @@ export function ProfileContent({ user, profile, stats, isAdmin }: ProfileContent
   }
 
   const getAvatarSrc = () => {
-    if (removeAvatar && !avatarFile) return null
+    if (removeAvatar && !avatarFile && !pendingAvatarPath) return null
     if (avatarPreview) return avatarPreview
+    if (pendingAvatarPath) {
+      return `/api/file?pathname=${encodeURIComponent(pendingAvatarPath)}`
+    }
     if (displayAvatar) return `/api/file?pathname=${encodeURIComponent(displayAvatar)}`
     return null
   }
 
   const canRemoveAvatar =
     isEditing &&
-    (Boolean(displayAvatar) || Boolean(avatarPreview) || Boolean(avatarFile)) &&
+    (Boolean(displayAvatar) ||
+      Boolean(avatarPreview) ||
+      Boolean(avatarFile) ||
+      Boolean(pendingAvatarPath)) &&
     !removeAvatar
 
   return (
@@ -257,16 +303,33 @@ export function ProfileContent({ user, profile, stats, isAdmin }: ProfileContent
             <h1 className="text-lg font-semibold">Profile</h1>
           </div>
           {!isEditing ? (
-            <Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>
-              <Pencil className="h-4 w-4 mr-2" />
+            <Button
+              size="sm"
+              variant="outline"
+              className="min-h-10 touch-manipulation"
+              onClick={() => setIsEditing(true)}
+            >
+              <Pencil className="mr-2 h-4 w-4" />
               Edit
             </Button>
           ) : (
-            <div className="flex gap-2">
-              <Button size="sm" variant="ghost" onClick={handleCancel}>
+            <div className="flex gap-1 sm:gap-2">
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-10 w-10 shrink-0 touch-manipulation"
+                onClick={handleCancel}
+                aria-label="Cancel editing"
+              >
                 <X className="h-4 w-4" />
               </Button>
-              <Button size="sm" onClick={handleSave} disabled={isSaving}>
+              <Button
+                size="icon"
+                className="h-10 w-10 shrink-0 touch-manipulation"
+                onClick={handleSave}
+                disabled={isSaving}
+                aria-label={isSaving ? 'Saving' : 'Save profile'}
+              >
                 {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               </Button>
             </div>
@@ -498,18 +561,18 @@ export function ProfileContent({ user, profile, stats, isAdmin }: ProfileContent
         {/* Actions */}
         {!isEditing && (
           <div className="mt-6 space-y-3">
-            <Button asChild className="w-full">
+            <Button asChild className="min-h-11 w-full touch-manipulation">
               <Link href="/submit">Submit a New Spot</Link>
             </Button>
             {isAdmin && (
-              <Button asChild variant="outline" className="w-full">
+              <Button asChild variant="outline" className="min-h-11 w-full touch-manipulation">
                 <Link href="/admin">
                   <Shield className="mr-2 h-4 w-4" />
                   Admin Dashboard
                 </Link>
               </Button>
             )}
-            <Button variant="destructive" className="w-full" onClick={handleSignOut}>
+            <Button variant="destructive" className="min-h-11 w-full touch-manipulation" onClick={handleSignOut}>
               <LogOut className="mr-2 h-4 w-4" />
               Sign Out
             </Button>

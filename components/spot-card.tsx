@@ -59,41 +59,46 @@ export function SpotCard({ spot, compact = false, isOSM = false }: SpotCardProps
     return (
       <Card className="group border-border bg-card/80 backdrop-blur-sm transition-colors hover:bg-card">
         <CardContent className="flex items-center gap-3 p-3">
-          {imageUrl ? (
-            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg">
-              <img 
-                src={imageUrl} 
-                alt={spot.name}
-                className="h-full w-full object-cover"
-              />
+          <Link
+            href={`/spots/${spot.id}`}
+            className="flex min-w-0 flex-1 touch-manipulation items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:opacity-90"
+          >
+            {imageUrl ? (
+              <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg">
+                <img
+                  src={imageUrl}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/20">
+                <MapPin className="h-5 w-5 text-primary" />
+              </div>
+            )}
+            <div className="min-w-0 flex-1 text-left">
+              <div className="flex items-center gap-2">
+                <h3 className="truncate font-medium text-foreground">{spot.name}</h3>
+                {isOSM && (
+                  <Badge variant="outline" className="shrink-0 text-[10px] px-1.5 py-0">
+                    OSM
+                  </Badge>
+                )}
+              </div>
+              <p className="truncate text-sm text-muted-foreground">
+                {spot.address || spot.spot_type}
+              </p>
             </div>
-          ) : (
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/20">
-              <MapPin className="h-5 w-5 text-primary" />
-            </div>
-          )}
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <h3 className="truncate font-medium text-foreground">{spot.name}</h3>
-              {isOSM && (
-                <Badge variant="outline" className="shrink-0 text-[10px] px-1.5 py-0">
-                  OSM
-                </Badge>
-              )}
-            </div>
-            <p className="truncate text-sm text-muted-foreground">
-              {spot.address || spot.spot_type}
-            </p>
-          </div>
+          </Link>
           <a
             href={directionsUrl}
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
-            className="shrink-0 rounded-full bg-primary p-2 text-primary-foreground transition-transform hover:scale-105"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105 touch-manipulation active:scale-95"
+            aria-label="Get directions"
           >
-            <Navigation className="h-4 w-4" />
-            <span className="sr-only">Get directions</span>
+            <Navigation className="h-5 w-5" />
           </a>
         </CardContent>
       </Card>
@@ -138,7 +143,7 @@ export function SpotCard({ spot, compact = false, isOSM = false }: SpotCardProps
           </div>
           {!isOSM && (
             <Link href={`/spots/${spot.id}`}>
-              <Button size="sm" variant="ghost" className="shrink-0">
+              <Button size="sm" variant="ghost" className="min-h-10 shrink-0 touch-manipulation">
                 Details
                 <ArrowUpRight className="ml-1 h-3 w-3" />
               </Button>
@@ -154,7 +159,7 @@ export function SpotCard({ spot, compact = false, isOSM = false }: SpotCardProps
           rel="noopener noreferrer"
           className="mt-3 block"
         >
-          <Button className="w-full" size="sm">
+          <Button className="w-full min-h-11 touch-manipulation" size="sm">
             <Navigation className="mr-2 h-4 w-4" />
             Get Directions
           </Button>

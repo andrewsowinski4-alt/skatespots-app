@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, type MouseEvent } from 'react'
 import Map, {
   Marker,
   NavigationControl,
@@ -18,6 +18,7 @@ interface SpotMapProps {
   selectedSpotId?: string
 }
 
+/** Spots come from the server already filtered (approved) and coordinate-normalized in `app/page.tsx`. */
 export function SpotMap({ spots, onSpotSelect, selectedSpotId }: SpotMapProps) {
   const mapRef = useRef<MapRef>(null)
   const router = useRouter()
@@ -51,13 +52,24 @@ export function SpotMap({ spots, onSpotSelect, selectedSpotId }: SpotMapProps) {
     }
   }, [hasGeolocated])
 
-  const handleMarkerClick = useCallback((spot: SkateSpot) => {
-    if (onSpotSelect) {
-      onSpotSelect(spot)
-    } else {
-      router.push(`/spots/${spot.id}`)
-    }
-  }, [onSpotSelect, router])
+  const handleMarkerClick = useCallback(
+    (spot: SkateSpot) => {
+      if (onSpotSelect) {
+        onSpotSelect(spot)
+      } else {
+        router.push(`/spots/${spot.id}`)
+      }
+    },
+    [onSpotSelect, router]
+  )
+
+  const handleMarkerButtonClick = useCallback(
+    (e: MouseEvent<HTMLButtonElement>, spot: SkateSpot) => {
+      e.stopPropagation()
+      handleMarkerClick(spot)
+    },
+    [handleMarkerClick]
+  )
 
   const handleMove = useCallback((evt: ViewStateChangeEvent) => {
     setViewState(evt.viewState)
@@ -101,20 +113,17 @@ export function SpotMap({ spots, onSpotSelect, selectedSpotId }: SpotMapProps) {
       <NavigationControl position="top-right" showCompass={false} />
       
       {spots.map((spot) => (
-        <Marker
-          key={spot.id}
-          longitude={spot.longitude}
-          latitude={spot.latitude}
-          anchor="bottom"
-          onClick={() => handleMarkerClick(spot)}
-        >
+        <Marker key={spot.id} longitude={spot.longitude} latitude={spot.latitude} anchor="bottom">
           <button
-            className={`flex h-8 w-8 items-center justify-center rounded-full transition-all ${
+            type="button"
+            className={`flex h-11 w-11 touch-manipulation items-center justify-center rounded-full [-webkit-tap-highlight-color:transparent] transition-all ${
               selectedSpotId === spot.id
                 ? 'scale-125 bg-primary text-primary-foreground'
-                : 'bg-primary/90 text-primary-foreground hover:scale-110'
+                : 'bg-primary/90 text-primary-foreground hover:scale-110 active:scale-95'
             }`}
-            aria-label={`View ${spot.name}`}
+            aria-label={`${spot.name}. Tap for preview, open details from the card.`}
+            aria-pressed={selectedSpotId === spot.id}
+            onClick={(e) => handleMarkerButtonClick(e, spot)}
           >
             <SpotIcon type={spot.spot_type} />
           </button>

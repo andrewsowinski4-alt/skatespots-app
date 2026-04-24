@@ -1,7 +1,7 @@
 {
   "name": "SpotFinder - Discover Skate Spots",
   "short_name": "SpotFinder",
-  "description": "Find and share the best skate spots in your city",
+  "description": "Find and share skate spots — map, photos, and community submissions.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",

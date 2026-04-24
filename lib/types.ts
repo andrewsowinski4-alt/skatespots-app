@@ -1,3 +1,5 @@
+export type { SubmitSpotBody } from '@/lib/schemas/submit-spot'
+
 export type SpotStatus = 'pending' | 'approved' | 'rejected'
 
 export interface SkateSpot {

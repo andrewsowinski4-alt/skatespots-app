@@ -32,8 +32,14 @@ export function AdminDashboard({ pendingSpots: initialPending, allSpots: initial
         body: JSON.stringify({ status: action }),
       })
 
+      const payload = (await res.json().catch(() => ({}))) as { error?: string }
+
       if (!res.ok) {
-        throw new Error('Failed to update spot')
+        throw new Error(
+          typeof payload.error === 'string'
+            ? payload.error
+            : `Could not update spot (${res.status})`
+        )
       }
 
       // Update local state
@@ -45,7 +51,7 @@ export function AdminDashboard({ pendingSpots: initialPending, allSpots: initial
       toast.success(`Spot ${action}`)
       router.refresh()
     } catch (error) {
-      toast.error('Failed to update spot')
+      toast.error(error instanceof Error ? error.message : 'Failed to update spot')
     } finally {
       setLoadingId(null)
     }
@@ -93,11 +99,11 @@ export function AdminDashboard({ pendingSpots: initialPending, allSpots: initial
 
       <div className="mx-auto max-w-3xl p-4">
         <Tabs defaultValue="pending" className="w-full">
-          <TabsList className="mb-4 w-full">
-            <TabsTrigger value="pending" className="flex-1">
+          <TabsList className="mb-4 h-auto min-h-11 w-full gap-1 p-1">
+            <TabsTrigger value="pending" className="flex-1 touch-manipulation py-2.5">
               Pending ({pendingSpots.length})
             </TabsTrigger>
-            <TabsTrigger value="all" className="flex-1">
+            <TabsTrigger value="all" className="flex-1 touch-manipulation py-2.5">
               All Spots ({allSpots.length})
             </TabsTrigger>
           </TabsList>
@@ -152,10 +158,10 @@ export function AdminDashboard({ pendingSpots: initialPending, allSpots: initial
                       </p>
 
                       {/* Actions */}
-                      <div className="mt-4 flex gap-2">
+                      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                         <Button
                           size="sm"
-                          className="flex-1"
+                          className="min-h-11 flex-1 touch-manipulation"
                           onClick={() => handleAction(spot.id, 'approved')}
                           disabled={loadingId === spot.id}
                         >
@@ -171,7 +177,7 @@ export function AdminDashboard({ pendingSpots: initialPending, allSpots: initial
                         <Button
                           size="sm"
                           variant="destructive"
-                          className="flex-1"
+                          className="min-h-11 flex-1 touch-manipulation"
                           onClick={() => handleAction(spot.id, 'rejected')}
                           disabled={loadingId === spot.id}
                         >

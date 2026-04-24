@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { SubmitSpotForm } from '@/components/submit-spot-form'
 
 export const metadata = {
-  title: 'Submit a Spot - SpotFinder',
+  title: 'Submit a spot',
   description: 'Share a new skate spot with the community',
 }
 

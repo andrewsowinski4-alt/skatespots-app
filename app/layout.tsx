@@ -3,15 +3,21 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from 'sonner'
 import Script from 'next/script'
+import { getMetadataBase, getSiteUrl } from '@/lib/site-url'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
+const siteDescription = 'Find and share skate spots — map, photos, and community submissions.'
+
 export const metadata: Metadata = {
-  title: 'SpotFinder - Discover Skate Spots',
-  description: 'Find and share the best skate spots in your city',
-  generator: 'v0.app',
+  metadataBase: getMetadataBase(),
+  title: {
+    default: 'SpotFinder',
+    template: '%s · SpotFinder',
+  },
+  description: siteDescription,
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
@@ -20,6 +26,19 @@ export const metadata: Metadata = {
   },
   formatDetection: {
     telephone: false,
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    url: getSiteUrl(),
+    siteName: 'SpotFinder',
+    title: 'SpotFinder',
+    description: siteDescription,
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'SpotFinder',
+    description: siteDescription,
   },
   icons: {
     icon: [

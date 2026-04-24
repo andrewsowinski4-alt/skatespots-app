@@ -1,15 +1,15 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { BottomNav } from '@/components/bottom-nav'
-import { ArrowLeft, Upload, X, MapPin, Loader2, CheckCircle } from 'lucide-react'
+import { ArrowLeft, Upload, X, MapPin, Loader2, CheckCircle, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface SubmitSpotFormProps {
@@ -18,13 +18,13 @@ interface SubmitSpotFormProps {
 }
 
 export function SubmitSpotForm({ isAdmin, isAuthenticated }: SubmitSpotFormProps) {
-  const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [photoPathname, setPhotoPathname] = useState<string | null>(null)
   const [isGettingLocation, setIsGettingLocation] = useState(false)
+  const [manualCoordsOpen, setManualCoordsOpen] = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
   const [formData, setFormData] = useState({
@@ -36,6 +36,10 @@ export function SubmitSpotForm({ isAdmin, isAuthenticated }: SubmitSpotFormProps
     spot_type: '',
     difficulty: '',
   })
+
+  const latParsed = parseFloat(formData.latitude)
+  const lngParsed = parseFloat(formData.longitude)
+  const hasValidCoords = !Number.isNaN(latParsed) && !Number.isNaN(lngParsed)
 
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -60,8 +64,10 @@ export function SubmitSpotForm({ isAdmin, isAuthenticated }: SubmitSpotFormProps
       })
 
       if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Upload failed')
+        const data = (await res.json().catch(() => ({}))) as { error?: string }
+        throw new Error(
+          typeof data.error === 'string' ? data.error : `Upload failed (${res.status})`
+        )
       }
 
       const { pathname } = await res.json()
@@ -70,6 +76,7 @@ export function SubmitSpotForm({ isAdmin, isAuthenticated }: SubmitSpotFormProps
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to upload photo')
       setPhotoPreview(null)
+      setPhotoPathname(null)
     } finally {
       setIsUploading(false)
     }
@@ -102,7 +109,9 @@ export function SubmitSpotForm({ isAdmin, isAuthenticated }: SubmitSpotFormProps
       },
       (error) => {
         setIsGettingLocation(false)
-        toast.error('Unable to get your location')
+        toast.error(
+          'Unable to get your location. Open “Enter coordinates manually” below if you need to type them.'
+        )
       },
       { enableHighAccuracy: true }
     )
@@ -110,6 +119,32 @@ export function SubmitSpotForm({ isAdmin, isAuthenticated }: SubmitSpotFormProps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!formData.spot_type) {
+      toast.error('Select a spot type')
+      return
+    }
+    if (!formData.difficulty) {
+      toast.error('Select a difficulty')
+      return
+    }
+
+    const lat = latParsed
+    const lng = lngParsed
+    if (Number.isNaN(lat) || Number.isNaN(lng)) {
+      toast.error('Set a location using the button below or enter coordinates manually.')
+      return
+    }
+
+    if (!photoPathname?.trim()) {
+      toast.error('Add a photo of the spot before submitting.')
+      return
+    }
+    if (isUploading) {
+      toast.error('Wait for the photo to finish uploading.')
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -117,20 +152,28 @@ export function SubmitSpotForm({ isAdmin, isAuthenticated }: SubmitSpotFormProps
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: formData.name,
-          description: formData.description,
-          latitude: parseFloat(formData.latitude),
-          longitude: parseFloat(formData.longitude),
-          address: formData.address,
+          name: formData.name.trim(),
+          description: formData.description.trim(),
+          latitude: lat,
+          longitude: lng,
+          address: formData.address.trim(),
           spot_type: formData.spot_type,
           difficulty: formData.difficulty,
           photo_url: photoPathname,
         }),
       })
 
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string
+        details?: { path: string; message: string }[]
+      }
+
       if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Failed to submit spot')
+        const msg =
+          typeof data.error === 'string'
+            ? data.error
+            : data.details?.[0]?.message ?? `Could not submit (${res.status})`
+        throw new Error(msg)
       }
 
       setSubmitted(true)
@@ -153,11 +196,12 @@ export function SubmitSpotForm({ isAdmin, isAuthenticated }: SubmitSpotFormProps
             Your spot has been submitted for review. Once approved, it will appear on the map.
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <Button asChild>
+            <Button asChild className="min-h-11 touch-manipulation">
               <Link href="/">Back to Map</Link>
             </Button>
-            <Button variant="outline" onClick={() => {
+            <Button variant="outline" className="min-h-11 touch-manipulation" onClick={() => {
               setSubmitted(false)
+              setManualCoordsOpen(false)
               setFormData({
                 name: '',
                 description: '',
@@ -195,9 +239,9 @@ export function SubmitSpotForm({ isAdmin, isAuthenticated }: SubmitSpotFormProps
       </header>
 
       <form onSubmit={handleSubmit} className="mx-auto max-w-lg p-4">
-        {/* Photo Upload */}
+        {/* Photo Upload (required) */}
         <div className="mb-6">
-          <Label className="mb-2 block">Photo</Label>
+          <Label className="mb-2 block">Photo (required)</Label>
           {photoPreview ? (
             <div className="relative aspect-video overflow-hidden rounded-xl">
               <img src={photoPreview} alt="Preview" className="h-full w-full object-cover" />
@@ -205,14 +249,19 @@ export function SubmitSpotForm({ isAdmin, isAuthenticated }: SubmitSpotFormProps
                 type="button"
                 size="icon"
                 variant="secondary"
-                className="absolute right-2 top-2"
+                className="absolute right-2 top-2 h-10 w-10 touch-manipulation"
                 onClick={removePhoto}
               >
                 <X className="h-4 w-4" />
               </Button>
               {isUploading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-background/80">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <div
+                  className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/85"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden />
+                  <span className="text-sm font-medium text-foreground">Uploading…</span>
                 </div>
               )}
             </div>
@@ -220,7 +269,7 @@ export function SubmitSpotForm({ isAdmin, isAuthenticated }: SubmitSpotFormProps
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex aspect-video w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-secondary/50 transition-colors hover:border-primary/50 hover:bg-secondary"
+              className="flex aspect-video w-full touch-manipulation flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-secondary/50 transition-colors hover:border-primary/50 hover:bg-secondary active:bg-secondary/80"
             >
               <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Tap to upload a photo</span>
@@ -262,33 +311,12 @@ export function SubmitSpotForm({ isAdmin, isAuthenticated }: SubmitSpotFormProps
           />
         </div>
 
-        {/* Location */}
+        {/* Location — primary: geolocation; manual coords in Advanced */}
         <div className="mb-4">
           <Label>Location</Label>
-          <div className="mt-1 grid grid-cols-2 gap-3">
-            <Input
-              placeholder="Latitude"
-              value={formData.latitude}
-              onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
-              required
-              type="number"
-              step="any"
-              className="bg-secondary"
-            />
-            <Input
-              placeholder="Longitude"
-              value={formData.longitude}
-              onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
-              required
-              type="number"
-              step="any"
-              className="bg-secondary"
-            />
-          </div>
           <Button
             type="button"
-            variant="outline"
-            className="mt-2 w-full"
+            className="mt-1 min-h-11 w-full touch-manipulation"
             onClick={getCurrentLocation}
             disabled={isGettingLocation}
           >
@@ -297,8 +325,73 @@ export function SubmitSpotForm({ isAdmin, isAuthenticated }: SubmitSpotFormProps
             ) : (
               <MapPin className="mr-2 h-4 w-4" />
             )}
-            Use Current Location
+            Use current location
           </Button>
+
+          {hasValidCoords && !manualCoordsOpen ? (
+            <div
+              className="mt-3 flex items-start gap-3 rounded-xl border border-border bg-secondary/50 p-3"
+              role="status"
+            >
+              <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground">Location set</p>
+                <p className="text-xs text-muted-foreground">
+                  Your spot will be pinned at this GPS position. Use the button above to update it, or enter
+                  coordinates manually if needed.
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          <Collapsible open={manualCoordsOpen} onOpenChange={setManualCoordsOpen} className="mt-3">
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex min-h-11 w-full touch-manipulation items-center justify-between rounded-lg border border-border bg-secondary/30 px-3 py-2 text-left text-sm font-medium text-foreground hover:bg-secondary/50"
+              >
+                Enter coordinates manually
+                <ChevronDown
+                  className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${manualCoordsOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2 space-y-2 data-[state=closed]:animate-none">
+              <p className="text-xs text-muted-foreground">
+                Use decimal degrees (e.g. from maps). Required if location access is blocked.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="latitude" className="text-xs">
+                    Latitude
+                  </Label>
+                  <Input
+                    id="latitude"
+                    placeholder="Latitude"
+                    value={formData.latitude}
+                    onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
+                    type="number"
+                    step="any"
+                    className="mt-1 bg-secondary"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="longitude" className="text-xs">
+                    Longitude
+                  </Label>
+                  <Input
+                    id="longitude"
+                    placeholder="Longitude"
+                    value={formData.longitude}
+                    onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
+                    type="number"
+                    step="any"
+                    className="mt-1 bg-secondary"
+                  />
+                </div>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
 
         {/* Address */}
@@ -348,7 +441,11 @@ export function SubmitSpotForm({ isAdmin, isAuthenticated }: SubmitSpotFormProps
         </div>
 
         {/* Submit */}
-        <Button type="submit" className="w-full" disabled={isSubmitting || isUploading}>
+        <Button
+          type="submit"
+          className="min-h-12 w-full touch-manipulation"
+          disabled={isSubmitting || isUploading}
+        >
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

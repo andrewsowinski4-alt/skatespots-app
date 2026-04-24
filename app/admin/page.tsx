@@ -4,7 +4,7 @@ import { AdminDashboard } from '@/components/admin-dashboard'
 import type { SkateSpot } from '@/lib/types'
 
 export const metadata = {
-  title: 'Admin Dashboard - SpotFinder',
+  title: 'Admin',
   description: 'Manage submitted skate spots',
 }
 

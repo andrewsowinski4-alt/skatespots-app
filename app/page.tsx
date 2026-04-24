@@ -1,17 +1,28 @@
 import { createClient } from '@/lib/supabase/server'
 import { HomeContent } from '@/components/home-content'
-import type { SkateSpot } from '@/lib/types'
+import { normalizeSkateSpotsForMap } from '@/lib/map-spots'
+import { fetchApprovedSkateSpots } from '@/lib/queries/approved-spots'
 
 export default async function HomePage() {
   const supabase = await createClient()
 
   const { data: user } = await supabase.auth.getUser()
 
-  const { data: spots } = await supabase
-    .from('skate_spots')
-    .select('*')
-    .eq('status', 'approved')
-    .order('created_at', { ascending: false })
+  const { spots: rawSpots, error: spotsError } = await fetchApprovedSkateSpots(supabase)
+  if (spotsError) {
+    console.error('Approved spots query failed:', spotsError.message)
+  }
+
+  const spotsLoadError = spotsError
+    ? 'Spots could not be loaded. Check your connection and try again.'
+    : null
+
+  const spots = spotsError ? [] : normalizeSkateSpotsForMap(rawSpots)
+  if (!spotsError && rawSpots.length > 0 && spots.length < rawSpots.length) {
+    console.warn(
+      `[map] Dropped ${rawSpots.length - spots.length} approved spot(s) with invalid coordinates`
+    )
+  }
 
   let isAdmin = false
   if (user?.user?.email) {
@@ -24,9 +35,10 @@ export default async function HomePage() {
   }
 
   return (
-    <HomeContent 
-      spots={(spots as SkateSpot[]) || []} 
-      isAdmin={isAdmin} 
+    <HomeContent
+      spots={spots}
+      spotsLoadError={spotsLoadError}
+      isAdmin={isAdmin}
       isAuthenticated={!!user?.user}
     />
   )

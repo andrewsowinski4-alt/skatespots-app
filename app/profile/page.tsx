@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { ProfileContent } from '@/components/profile-content'
 
 export const metadata = {
-  title: 'Profile - SpotFinder',
+  title: 'Profile',
   description: 'Your SpotFinder profile',
 }
 
@@ -25,12 +25,16 @@ export default async function ProfilePage() {
     isAdmin = !!adminUser
   }
 
-  // Get user's profile
-  const { data: profile } = await supabase
+  // Get user's profile (maybeSingle: no row yet should not throw PGRST116)
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
+
+  if (profileError) {
+    console.error('Profile load failed:', profileError.message)
+  }
 
   // Get user's submitted spots count
   const { count: submittedCount } = await supabase
@@ -57,7 +61,7 @@ export default async function ProfilePage() {
           avatar_path?: string
         },
       }}
-      profile={profile}
+      profile={profile ?? null}
       stats={{
         submitted: submittedCount || 0,
         approved: approvedCount || 0,

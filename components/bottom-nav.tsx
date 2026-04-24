@@ -42,13 +42,13 @@ export function BottomNav({ isAdmin = false, isAuthenticated = false }: BottomNa
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-lg safe-area-pb">
-      <div className="mx-auto flex max-w-lg items-center justify-around px-4 py-2">
+      <div className="mx-auto flex max-w-lg items-stretch justify-around px-2 py-1 sm:px-4">
         {navItems.map((item) => (
           <Link
             key={item.label}
             href={item.href}
             className={cn(
-              'flex flex-col items-center gap-1 px-4 py-2 text-xs transition-colors',
+              'flex min-h-[48px] min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-1 px-2 py-2 text-xs transition-colors active:opacity-80',
               item.active
                 ? 'text-primary'
                 : 'text-muted-foreground hover:text-foreground'
